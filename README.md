@@ -1,4 +1,4 @@
-# app_qeimate_arz
+# Exchange_Rate
 
 A new Flutter project.
 
