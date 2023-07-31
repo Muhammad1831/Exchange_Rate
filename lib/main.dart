@@ -1,6 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'Model/currency.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert' as convert;
 /*
 void main() {
   runApp(MyApp());
@@ -325,6 +328,16 @@ class MyApp extends StatelessWidget {
               fontSize: 17,
               fontWeight: FontWeight.w300,
               color: Colors.white),
+          headline3: TextStyle(
+              fontFamily: 'bnazanin',
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.red),
+          headline4: TextStyle(
+              fontFamily: 'bnazanin',
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.green),
           bodyText1: TextStyle(
               fontFamily: 'bnazanin',
               fontSize: 16,
@@ -342,13 +355,47 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class Home extends StatelessWidget {
-  const Home({
+class Home extends StatefulWidget {
+  Home({
     super.key,
   });
 
   @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  List<Currency> currency = [];
+
+  getResponse(BuildContext context) {
+    var url =
+        'https://sasansafari.com/flutter/api.php?access_key=flutter123456';
+    http.get(Uri.parse(url)).then((value) {
+      List jsonList = convert.jsonDecode(value.body);
+      if (currency.isEmpty) {
+        if (value.statusCode == 200) {
+          if (jsonList.length > 0) {
+            for (var i = 0; i < jsonList.length; i++) {
+              setState(() {
+                currency.add(Currency(
+                    id: jsonList[i]['id'],
+                    title: jsonList[i]['title'],
+                    price: jsonList[i]['price'],
+                    changes: jsonList[i]['changes'],
+                    status: jsonList[i]['status']));
+              });
+            }
+            ;
+          }
+        }
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    getResponse(context);
+
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 243, 243, 243),
       appBar: AppBar(
@@ -429,11 +476,11 @@ class Home extends StatelessWidget {
                 width: double.maxFinite,
                 child: ListView.separated(
                   physics: BouncingScrollPhysics(),
-                  itemCount: 20,
+                  itemCount: currency.length,
                   itemBuilder: (BuildContext context, int position) {
-                    return const Padding(
+                    return Padding(
                       padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-                      child: MyItem(),
+                      child: MyItem(position, currency),
                     );
                   },
                   separatorBuilder: (BuildContext context, int index) {
@@ -474,7 +521,8 @@ class Home extends StatelessWidget {
                                       RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(1000)))),
-                              onPressed: ()=>_showSnackBar(context, 'بروزرسانی با موفقیت انجام شد'),
+                              onPressed: () => _showSnackBar(
+                                  context, 'بروزرسانی با موفقیت انجام شد'),
                               icon: const Padding(
                                 padding: EdgeInsets.fromLTRB(0, 0, 5, 0),
                                 child: Icon(
@@ -490,8 +538,13 @@ class Home extends StatelessWidget {
                                 ),
                               )),
                         ),
-                        Text('آخرین بروزرسانی ${_getTime()}', style: Theme.of(context).textTheme.bodyText2,),
-                        SizedBox(width: 6,)
+                        Text(
+                          'آخرین بروزرسانی ${_getTime()}',
+                          style: Theme.of(context).textTheme.bodyText2,
+                        ),
+                        SizedBox(
+                          width: 6,
+                        )
                       ],
                     )),
               )
@@ -501,16 +554,17 @@ class Home extends StatelessWidget {
       ),
     );
   }
-  
+
   String _getTime() {
     return "20:45";
   }
 }
 
 class MyItem extends StatelessWidget {
-  const MyItem({
-    super.key,
-  });
+  int postion;
+  List<Currency> currency;
+
+  MyItem(this.postion, this.currency);
 
   @override
   Widget build(BuildContext context) {
@@ -526,16 +580,18 @@ class MyItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             Text(
-              'دلار',
+              currency[postion].title!,
               style: Theme.of(context).textTheme.bodyText1,
             ),
             Text(
-              '49000',
+              currency[postion].price!,
               style: Theme.of(context).textTheme.bodyText1,
             ),
             Text(
-              '5+',
-              style: Theme.of(context).textTheme.bodyText1,
+              currency[postion].changes!,
+              style: currency[postion].status == 'p'
+                  ? Theme.of(context).textTheme.headline4
+                  : Theme.of(context).textTheme.headline3,
             ),
           ],
         ));
@@ -568,9 +624,12 @@ class Advertising extends StatelessWidget {
 
 void _showSnackBar(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-    message,
-    style: Theme.of(context).textTheme.headline1,),
-    backgroundColor: Color.fromARGB(255, 57, 251, 64),
+    content: Text(
+      message,
+      style: Theme.of(context).textTheme.headline1,
+    ),
+    backgroundColor: const Color.fromARGB(255, 57, 251, 64),
   ));
 }
+
+// https://sasansafari.com/flutter/api.php?access_key=flutter123456
