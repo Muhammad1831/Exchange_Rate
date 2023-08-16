@@ -4,6 +4,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'Model/currency.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' as convert;
+import 'dart:developer' as developer;
+import 'package:intl/intl.dart';
+import 'dart:ui' as ui;
 /*
 void main() {
   runApp(MyApp());
@@ -367,34 +370,65 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   List<Currency> currency = [];
 
-  getResponse(BuildContext context) {
+  Future getResponse(BuildContext context) async {
+    developer.log('getResponse', name: 'widgerLifeCycle');
+
     var url =
         'https://sasansafari.com/flutter/api.php?access_key=flutter123456';
-    http.get(Uri.parse(url)).then((value) {
-      List jsonList = convert.jsonDecode(value.body);
-      if (currency.isEmpty) {
-        if (value.statusCode == 200) {
-          if (jsonList.length > 0) {
-            for (var i = 0; i < jsonList.length; i++) {
-              setState(() {
-                currency.add(Currency(
-                    id: jsonList[i]['id'],
-                    title: jsonList[i]['title'],
-                    price: jsonList[i]['price'],
-                    changes: jsonList[i]['changes'],
-                    status: jsonList[i]['status']));
-              });
-            }
-            ;
+    //http.get(Uri.parse(url)).then((value) {
+    var value = await http.get(Uri.parse(url));
+
+    developer.log(value.body, name: 'getResponse1');
+
+    if (currency.isEmpty) {
+      if (value.statusCode == 200) {
+        _showSnackBar(context, 'بروزرسانی با موفقیت انجام شد');
+        developer.log(url,
+            name: 'getResponse2', error: convert.jsonDecode(value.body));
+
+        List jsonList = convert.jsonDecode(value.body);
+        if (jsonList.length > 0) {
+          for (var i = 0; i < jsonList.length; i++) {
+            setState(() {
+              currency.add(Currency(
+                  id: jsonList[i]['id'],
+                  title: jsonList[i]['title'],
+                  price: jsonList[i]['price'],
+                  changes: jsonList[i]['changes'],
+                  status: jsonList[i]['status']));
+            });
           }
+          ;
         }
       }
-    });
+    }
+    ;
+    //});
+    return value;
+  }
+
+  @override
+  void initState() {
+    developer.log('initstate', name: 'widgerLifeCycle');
+    getResponse(context);
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    developer.log('didChangeDependencies', name: 'widgerLifeCycle');
+    super.didChangeDependencies();
+  }
+
+  @override
+  void didUpdateWidget(covariant Home oldWidget) {
+    developer.log('didUpdateWidget', name: 'widgerLifeCycle');
+    super.didUpdateWidget(oldWidget);
   }
 
   @override
   Widget build(BuildContext context) {
-    getResponse(context);
+    developer.log('build', name: 'widgerLifeCycle');
 
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 243, 243, 243),
@@ -440,7 +474,7 @@ class _HomeState extends State<Home> {
               ),
               Text(
                 ' نرخ ارزها در معاملات نقدی و رایج روزانه است معاملات نقدی معاملاتی هستند که خریدار و فروشنده به محض انجام معامله، ارز و ریال را با هم تبادل می نمایند.',
-                textDirection: TextDirection.rtl,
+                textDirection: ui.TextDirection.rtl,
                 style: Theme.of(context).textTheme.bodyText1,
               ),
               Padding(
@@ -448,7 +482,8 @@ class _HomeState extends State<Home> {
                 child: Container(
                   height: 35,
                   width: double.infinity,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
+                      border: Border.all(width: 2, color: Colors.black),
                       borderRadius: BorderRadius.all(Radius.circular(1000)),
                       color: Color.fromARGB(255, 130, 130, 130)),
                   child: Row(
@@ -474,26 +509,7 @@ class _HomeState extends State<Home> {
               SizedBox(
                 height: 400,
                 width: double.maxFinite,
-                child: ListView.separated(
-                  physics: BouncingScrollPhysics(),
-                  itemCount: currency.length,
-                  itemBuilder: (BuildContext context, int position) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-                      child: MyItem(position, currency),
-                    );
-                  },
-                  separatorBuilder: (BuildContext context, int index) {
-                    if (index % 5 == 0) {
-                      return const Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-                        child: Advertising(),
-                      );
-                    } else {
-                      return SizedBox.shrink();
-                    }
-                  },
-                ),
+                child: listFutureBuilder(),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(0, 15, 0, 0),
@@ -521,8 +537,10 @@ class _HomeState extends State<Home> {
                                       RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(1000)))),
-                              onPressed: () => _showSnackBar(
-                                  context, 'بروزرسانی با موفقیت انجام شد'),
+                              onPressed: () => setState(() {
+                                    currency.clear();// چون لیست خالی نباشه اصن نمی تونه واردش بشه در getReaponse()
+                                    listFutureBuilder();
+                                  }),
                               icon: const Padding(
                                 padding: EdgeInsets.fromLTRB(0, 0, 5, 0),
                                 child: Icon(
@@ -555,8 +573,45 @@ class _HomeState extends State<Home> {
     );
   }
 
+  FutureBuilder<dynamic> listFutureBuilder() {
+    return FutureBuilder(
+      future: getResponse(context),
+      builder: (context, snapshot) {
+        return snapshot.hasData
+            ? ListView.separated(
+                physics: BouncingScrollPhysics(),
+                itemCount: currency.length,
+                itemBuilder: (BuildContext context, int position) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+                    child: MyItem(position, currency),
+                  );
+                },
+                separatorBuilder: (BuildContext context, int index) {
+                  if (index % 5 == 0) {
+                    return const Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+                      child: Advertising(),
+                    );
+                  } else {
+                    return SizedBox.shrink();
+                  }
+                },
+              )
+            : const Center(
+                child: RefreshProgressIndicator(
+                    color: Colors.black,
+                    backgroundColor: Color.fromARGB(255, 246, 242, 31)),
+              );
+      },
+    );
+  }
+
   String _getTime() {
-    return "20:45";
+    developer.log('_getTime', name: 'widgerLifeCycle');
+    DateTime now = DateTime.now();
+    convertToEnglish(now.toString());
+    return DateFormat('hh:mm').format(now);
   }
 }
 
@@ -571,8 +626,12 @@ class MyItem extends StatelessWidget {
     return Container(
         height: 50,
         width: double.infinity,
-        decoration: const BoxDecoration(
-          boxShadow: <BoxShadow>[BoxShadow(blurRadius: 2, color: Colors.blue)],
+        decoration: BoxDecoration(
+          border: Border.all(
+              width: 1,
+              color:
+                  currency[postion].status == 'p' ? Colors.green : Colors.red),
+          boxShadow: <BoxShadow>[BoxShadow(blurRadius: 1, color: Colors.black)],
           borderRadius: BorderRadius.all(Radius.circular(1000)),
           color: Colors.white,
         ),
@@ -584,11 +643,11 @@ class MyItem extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyText1,
             ),
             Text(
-              currency[postion].price!,
+              convertToEnglish(currency[postion].price.toString()),
               style: Theme.of(context).textTheme.bodyText1,
             ),
             Text(
-              currency[postion].changes!,
+              convertToEnglish(currency[postion].changes.toString()),
               style: currency[postion].status == 'p'
                   ? Theme.of(context).textTheme.headline4
                   : Theme.of(context).textTheme.headline3,
@@ -632,4 +691,14 @@ void _showSnackBar(BuildContext context, String message) {
   ));
 }
 
+String convertToEnglish(String number){
+  List en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  List fa = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  
+  fa.forEach((element) {
+    number = number.replaceAll(element, en[fa.indexOf(element)]);
+  });
+
+  return number;
+}
 // https://sasansafari.com/flutter/api.php?access_key=flutter123456
